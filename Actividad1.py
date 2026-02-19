@@ -24,20 +24,27 @@ mask_green = cv2.inRange(hsv, lower_green, upper_green)
 mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
 mask_red = cv2.inRange(hsv, lower_red, upper_red)
 
-# Unir máscaras
-mask = mask_green + mask_yellow + mask_red
+#Crear mascaras
+mask_green = cv2.inRange(hsv, lower_green, upper_green)
+mask_red = cv2.inRange(hsv, lower_red, upper_red)
+mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
 
 # Aplicar máscara
-result = cv2.bitwise_and(img, img, mask=mask)
+result_green = cv2.bitwise_and(img,img, mask=mask_green)
+result_red = cv2.bitwise_and(img,img,mask=mask_red )
+result_yellow = cv2.bitwise_and(img,img,mask=mask_yellow )
+
+
 
 # Mostrar imágenes
 cv2.imshow("Imagen Original", img)
+cv2.imshow("Imagen HSV", hsv)   
+#Colores
+cv2.imshow("Color Detectado Verde", result_green)
+cv2.imshow("Color Detectado Rojo", result_red)
+cv2.imshow("Color Detectado Amarillo ", result_yellow)
 
-cv2.imshow("Imagen HSV", hsv)   # 👈 iamgen
 
-cv2.imshow("Mascara", mask)     # 👈 mascara
-
-cv2.imshow("Color Detectado", result)
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
