@@ -3,6 +3,9 @@ import numpy as np
 
 
 img1 = cv.imread("C:\\Users\\mikie\\Desktop\\Universidad\\Fondos4k\\Charmander.jpg")
+
+
+
 x,y,z = img1.shape
 print (x,y,z)
 img2 = np.zeros((x,y), np.uint8)

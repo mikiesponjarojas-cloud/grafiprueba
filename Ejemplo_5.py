@@ -1,0 +1,16 @@
+import cv2 as cv 
+
+img = cv.imread("C:\\Users\\mikie\\Desktop\\Universidad\\Fondos4k\\Charmander.jpg")
+
+
+
+
+hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+
+
+
+cv.imshow('hsv', hsv)
+cv.imshow('img', img)
+cv.waitKey(0)
+cv.destroyAllWindows()
