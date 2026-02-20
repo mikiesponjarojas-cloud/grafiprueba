@@ -2,6 +2,7 @@
 
 ## Color seleccionado
 
+
 Amarillo, rojo y verde.
 v
 ---
@@ -54,3 +55,82 @@ cv2.destroyAllWindows()
 ¿Qué ocurre cuando el rango es muy amplio?
 
 Cuando el rango es muy amplio, la máscara detecta colores que no pertenecen al objeto, incluyendo el fondo.
+
+
+# Actividad 2: Limpieza de Ruido
+==================================
+
+
+## Código utilizado
+```python
+
+
+
+
+
+
+
+
+##Preguntas:
+¿Que tipo  de ruido aparece ?
+
+
+¿Por que es necesario eliminarlo antes del conteo?
+
+
+# Avitividad 3: Conteo de regiones 
+===============================
+
+
+
+
+
+
+
+
+
+#Actividad 4:Comparacion entre los colores 
+=============================================
+
+
+
+
+
+
+
+##Preguntas:
+
+
+¿Que color fue mas facil?
+
+¿Cual presneto mas ruido ?
+
+¿Porque?
+
+
+
+
+#Actividad 5:Analisis Critico 
+
+##Preguntas: 
+1.¿Por que HSV es mas adecuado que RGB para esta tarea?
+
+2.¿Como afecta la iluminacion al canal?
+
+3.¿Que sucede si dos frutas tiene tonos similares?
+
+4.¿Que limitaciones tiene la segmentacion por color?
+
+
+
+
+
+
+
+##Capturas
+
+
+
+
+
+
