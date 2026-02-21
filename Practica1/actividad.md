@@ -10,9 +10,8 @@
 
 **Alumno:** Miguel Rojas Santillan
 **Materia:** Graficación
-**Profesor:** _______________________
-**Fecha:** _______________________
-
+**Profesor:** Jesus Eduardo  alcaraz Chaves
+**Fecha:** 20/02/2026
 ---
 
 # Índice
@@ -104,7 +103,22 @@ Cuando el rango es muy amplio, la máscara detecta no solamente el objeto desead
 
 ## Código utilizado
 
-(Agregar codigo)
+# Mostrar mascara original
+cv2.imshow("Mascara Rojo Original", mask_red)
+
+# Crear kernel
+kernel = np.ones((5,5), np.uint8)
+
+# Limpieza con apertura
+mask_red_clean = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
+
+# Mostrar mascara limpia
+cv2.imshow("Mascara Rojo Limpia", mask_red_clean)
+
+# Resultado limpio
+result_red_clean = cv2.bitwise_and(img, img, mask=mask_red_clean)
+
+cv2.imshow("Color Rojo Limpio", result_red_clean)
 
 ---
 
@@ -126,16 +140,55 @@ Eliminar el ruido permite obtener resultados más precisos.
 
 # Actividad 3: Conteo de regiones
 
-(Agregar codigo)
+
 
 En esta actividad se cuentan las frutas detectadas utilizando las máscaras.
+# Conteo de regiones
 
+num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_red_clean, connectivity=8)
+
+area_min = 500
+
+contador = 0
+
+for i in range(1, num_labels):
+
+    area = stats[i, cv2.CC_STAT_AREA]
+
+    if area >= area_min:
+
+        contador += 1
+        print("Fruta", contador, "- Area:", area, "pixeles")
+
+print("Total de frutas detectadas:", contador)
 ---
-
+Fruta 1: 1450 pixeles
+Fruta 2: 1320 pixeles
+Fruta 3: 1580 pixeles
+Fruta 4: 1670 pixeles
 # Actividad 4: Comparación entre los colores
 
 En esta actividad se comparó el comportamiento de cada color detectado.
+#Codigo:
+num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_red_clean, 8)
 
+area_min = 500
+contador_rojo = 0
+
+for i in range(1, num_labels):
+
+    area = stats[i, cv2.CC_STAT_AREA]
+
+    if area >= area_min:
+        contador_rojo += 1
+
+print("Frutas Rojas:", contador_rojo)
+
+Tabla Comparativa de Detección de Frutas
+Color	Número Detectado	Observaciones
+Rojo	      4	                Se detectaron correctamente las fresas, cerezas y manzana roja.                        Poco ruido después de la limpieza.
+Verde	       3	        Se detectaron las frutas verdes correctamente. No               presentó                     presento  mucho                        ruido.
+Amarillo	  4	    Fue el color más fácil de detectar. Las frutas fueron detectadas completas.
 ---
 
 ## Preguntas
@@ -193,7 +246,7 @@ El sistema puede confundirlas y detectarlas como el mismo objeto.
 
 # Capturas
 
-Agregar aquí:
+
 
 * Imagen original
 * Imagen verde

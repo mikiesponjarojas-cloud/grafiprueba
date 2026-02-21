@@ -31,6 +31,24 @@ mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
 # Unir rojos
 mask_red = mask_red1 + mask_red2
 
+##Ruido
+# Mostrar mascara original
+cv2.imshow("Mascara Rojo Original", mask_red)
+
+# Crear kernel
+kernel = np.ones((5,5), np.uint8)
+
+# Limpieza con apertura
+mask_red_clean = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
+
+# Mostrar mascara limpia
+cv2.imshow("Mascara Rojo Limpia", mask_red_clean)
+
+# Resultado limpio
+result_red_clean = cv2.bitwise_and(img, img, mask=mask_red_clean)
+
+cv2.imshow("Color Rojo Limpio", result_red_clean)
+
 # Aplicar máscara
 result_green = cv2.bitwise_and(img,img, mask=mask_green)
 result_red = cv2.bitwise_and(img,img, mask=mask_red)
