@@ -12,6 +12,7 @@ if not ret:
     cap.release()
     exit()
 
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
