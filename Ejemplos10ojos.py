@@ -20,18 +20,16 @@ while True:
         img = cv.circle(img, (x + int(w*0.7), y + int(h*0.4)) , 20, (255, 255, 255), -1 )
         img = cv.circle(img, (x + int(w*0.3), y + int(h*0.4)) , 5, (0, 0, 255), -1 )
         img = cv.circle(img, (x + int(w*0.7), y + int(h*0.4)) , 5, (0, 0, 255), -1 )
-        # Oreja izquierda
-        img = cv.circle(img, (x - int(w*0.1), y + int(h*0.35)), int(w*0.12), (255, 220, 200), -1)
-        img = cv.circle(img, (x - int(w*0.1), y + int(h*0.35)), int(w*0.07), (255, 180, 180), -1)
+        # Oreja izquierda (dentro del rostro)
+        img = cv.circle(img, (x + int(w*0.05), y + int(h*0.35)), int(w*0.08), (255,220,200), -1)
+        img = cv.circle(img, (x + int(w*0.05), y + int(h*0.35)), int(w*0.04), (255,180,180), -1)
 
-        # Oreja derecha
-        img = cv.circle(img, (x + w + int(w*0.1), y + int(h*0.35)), int(w*0.12), (255, 220, 200), -1)
-        img = cv.circle(img, (x + w + int(w*0.1), y + int(h*0.35)), int(w*0.07), (255, 180, 180), -1)
+        # Oreja derecha (dentro del rostro)
+        img = cv.circle(img, (x + int(w*0.95), y + int(h*0.35)), int(w*0.08), (255,220,200), -1)
+        img = cv.circle(img, (x + int(w*0.95), y + int(h*0.35)), int(w*0.04), (255,180,180), -1)
         # Nariz
         img = cv.circle(img, (x + int(w*0.5), y + int(h*0.55)), 10, (0,0,0), -1)
-        
-        #Orejas
-        
+
 
 
         # Boca
