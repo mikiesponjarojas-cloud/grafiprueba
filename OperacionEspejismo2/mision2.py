@@ -1,9 +1,8 @@
 import cv2
 import numpy as np
 
-
-mitad1 = cv2.imread("OperacionEspejismo2/m2_mitad1.png")
-mitad2 = cv2.imread("OperacionEspejismo2/m2_mitad2.png")
+mitad1 = cv2.imread("OperacionEspejismo2/m2_mitad1 1.png")
+mitad2 = cv2.imread("OperacionEspejismo2/m2_mitad2 1.png")
 
 
 if mitad1 is None or mitad2 is None:
