@@ -1,3 +1,7 @@
+# Examen de Operaciones de espejismo 2
+Miguel Rojas Santillan
+
+
 # Misión 1
 import cv2
 import numpy as np
