@@ -3,108 +3,109 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import sys
 
-# Variables globales
 window = None
-angle = 0  # Declaramos angle en el nivel superior
+angle = 0
 
 def init():
-    # Configuración inicial de OpenGL
-    glClearColor(0.0, 0.0, 0.0, 1.0)  # Color de fondo
-    glEnable(GL_DEPTH_TEST)  # Activar prueba de profundidad para 3D
-    # Configuración de proyección
+    glClearColor(0.0, 0.0, 0.0, 1.0)
+    glEnable(GL_DEPTH_TEST)
+
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluPerspective(45, 1, 0.1, 50.0)
-    # Cambiar a la matriz de modelo para los objetos
+    gluPerspective(60, 1, 0.1, 100.0)  # Mejor visión
+
     glMatrixMode(GL_MODELVIEW)
 
-def draw_cube():
-    global angle
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)  # Limpiar pantalla y buffer de profundidad
+def cube():
+    glBegin(GL_QUADS)
 
-    # Configuración de la vista del cubo
-    glLoadIdentity()
-    glTranslatef(0.0, 0.0, -1)  # Alejar el cubo para que sea visible
-    glRotatef(angle, 1, 1, 1)   # Rotar el cubo en todos los ejes
-    
+    glColor3f(1.0, 0.0, 1.0)
+    glVertex3f( 0.7, 0.7,-0.7)
+    glVertex3f(-0.7, 0.7,-0.7)
+    glVertex3f(-0.7, 0.7, 0.7)
+    glVertex3f( 0.7, 0.7, 0.7)
 
-    #glRotatef(angle, 0, 1, 0)   # Rotar el cubo en todos los ejes
+    glColor3f(0.0, 1.0, 0.0)
+    glVertex3f( 0.7,-0.7, 0.7)
+    glVertex3f(-0.7,-0.7, 0.7)
+    glVertex3f(-0.7,-0.7,-0.7)
+    glVertex3f( 0.7,-0.7,-0.7)
 
-    glBegin(GL_QUADS)  # Iniciar el cubo como un conjunto de caras (quads)
+    glColor3f(0.0, 0.0, 1.0)
+    glVertex3f( 0.7, 0.7, 0.7)
+    glVertex3f(-0.7, 0.7, 0.7)
+    glVertex3f(-0.7,-0.7, 0.7)
+    glVertex3f( 0.7,-0.7, 0.7)
 
-    # Cada conjunto de cuatro vértices representa una cara del cubo
-    glColor3f(1.0, 0.0, 1.0)  # Rojo
-    glVertex3f( 1, 1,-1)
-    glColor3f(0.4, 1.0, 1.0)  # Verde
-    glVertex3f(-1, 1,-1)
-    glColor3f(0.4, 1.0, 1.0)  # Verde
-    glVertex3f(-1, 1, 1)
-    glColor3f(0.3, 0.8, 0.1)  # Verde
-    glVertex3f( 1, 1, 1)
+    glColor3f(1.0, 1.0, 0.0)
+    glVertex3f( 0.7,-0.7,-0.7)
+    glVertex3f(-0.7,-0.7,-0.7)
+    glVertex3f(-0.7, 0.7,-0.7)
+    glVertex3f( 0.7, 0.7,-0.7)
 
-    glColor3f(0.0, 1.0, 0.0)  # Verde
-    glVertex3f( 1,-1, 1)
-    glVertex3f(-1,-1, 1)
-    glVertex3f(-1,-1,-1)
-    glVertex3f( 1,-1,-1)
+    glColor3f(1.0, 0.0, 1.0)
+    glVertex3f(-0.7, 0.7, 0.7)
+    glVertex3f(-0.7, 0.7,-0.7)
+    glVertex3f(-0.7,-0.7,-0.7)
+    glVertex3f(-0.7,-0.7, 0.7)
 
-    glColor3f(0.0, 0.0, 1.0)  # Azul
-    glVertex3f( 1, 1, 1)
-    glVertex3f(-1, 1, 1)
-    glVertex3f(-1,-1, 1)
-    glVertex3f( 1,-1, 1)
-
-    glColor3f(1.0, 1.0, 0.0)  # Amarillo
-    glVertex3f( 1,-1,-1)
-    glVertex3f(-1,-1,-1)
-    glVertex3f(-1, 1,-1)
-    glVertex3f( 1, 1,-1)
-
-    glColor3f(1.0, 0.0, 1.0)  # Magenta
-    glVertex3f(-1, 1, 1)
-    glVertex3f(-1, 1,-1)
-    glVertex3f(-1,-1,-1)
-    glVertex3f(-1,-1, 1)
-
-    glColor3f(0.0, 1.0, 1.0)  # Cyan
-    glVertex3f( 1, 1,-1)
-    glVertex3f( 1, 1, 1)
-    glVertex3f( 1,-1, 1)
-    glVertex3f( 1,-1,-1)
+    glColor3f(0.0, 1.0, 1.0)
+    glVertex3f( 0.7, 0.7,-0.7)
+    glVertex3f( 0.7, 0.7, 0.7)
+    glVertex3f( 0.7,-0.7, 0.7)
+    glVertex3f( 0.7,-0.7,-0.7)
 
     glEnd()
-    glFlush()
 
-    glfw.swap_buffers(window)  # Intercambiar buffers para animación suave
-    angle += 0.1  # Incrementar el ángulo para rotación
+def draw_cube(x, y, z, speed):
+    global angle
+
+    glLoadIdentity()
+    glTranslatef(x, y, z)
+
+    # Rotación en los 3 ejes
+    glRotatef(angle * speed, 1, 0, 0)
+    glRotatef(angle * speed, 0, 1, 0)
+    glRotatef(angle * speed, 0, 0, 1)
+
+    cube()
+
+def render():
+    global angle
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+    # 4 cubos separados
+    draw_cube(0, 0, -8, 1)
+    draw_cube(-4, 0, -10, 1.5)
+    draw_cube(4, 0, -10, 0.8)
+    draw_cube(0, 3, -9, 1.2)
+
+    glfw.swap_buffers(window)
+
+    angle += 0.01 # velocidad visible
 
 def main():
     global window
 
-    # Inicializar GLFW
     if not glfw.init():
         sys.exit()
 
-    # Crear ventana de GLFW
-    width, height = 500, 500
-    window = glfw.create_window(width, height, "Cubo 3D Rotando con GLFW", None, None)
+    window = glfw.create_window(600, 600, "4 Cubos 3D", None, None)
     if not window:
         glfw.terminate()
         sys.exit()
 
-    # Configurar el contexto de OpenGL en la ventana
     glfw.make_context_current(window)
 
-    # Configuración de viewport y OpenGL
-    glViewport(0, 1, width, height)
+    glViewport(0, 0, 600, 600)
     init()
 
-    # Bucle principal
     while not glfw.window_should_close(window):
-        draw_cube()
+        render()
         glfw.poll_events()
 
-    glfw.terminate()  # Cerrar GLFW al salir
+    glfw.terminate()
 
 if __name__ == "__main__":
     main()
