@@ -1,44 +1,39 @@
-import glfw
+import sys
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-import math
 
-# Variable global para rotación
-rotation_angle = 0.0
+# Variables globales
+rotation_angle = 0.1
+window_width = 1600
+window_height = 900
 
 def draw_sphere():
-    """Esfera usando GLU"""
     glColor3f(1.0, 0.2, 0.2)
     quadric = gluNewQuadric()
-    gluSphere(quadric, 0.5, 32, 32)
+    gluSphere(quadric, 0.5, 32, 32) # Aumenté los segmentos para que se vea redonda
     gluDeleteQuadric(quadric)
 
 def draw_cube():
-    """Cubo usando GLUT"""
     glColor3f(0.2, 1.0, 0.2)
     glutSolidCube(0.8)
 
 def draw_cone():
-    """Cono usando GLU"""
     glColor3f(0.2, 0.2, 1.0)
     quadric = gluNewQuadric()
-    glRotatef(-90, 1, 0, 0)  # Orientar hacia arriba
+    glRotatef(-90, 1, 0, 0)
     gluCylinder(quadric, 0.5, 0.0, 1.0, 32, 32)
     gluDeleteQuadric(quadric)
 
 def draw_torus():
-    """Toroide/Toro usando GLUT"""
     glColor3f(1.0, 1.0, 0.2)
     glutSolidTorus(0.2, 0.5, 32, 32)
 
 def draw_teapot():
-    """La famosa Tetera de Utah"""
     glColor3f(1.0, 0.2, 1.0)
     glutSolidTeapot(0.5)
 
 def draw_cylinder():
-    """Cilindro usando GLU"""
     glColor3f(0.2, 1.0, 1.0)
     quadric = gluNewQuadric()
     glRotatef(-90, 1, 0, 0)
@@ -46,59 +41,41 @@ def draw_cylinder():
     gluDeleteQuadric(quadric)
 
 def draw_disk():
-    """Disco usando GLU"""
     glColor3f(1.0, 0.5, 0.2)
     quadric = gluNewQuadric()
     gluDisk(quadric, 0.2, 0.6, 32, 32)
     gluDeleteQuadric(quadric)
 
 def draw_dodecahedron():
-    """Dodecaedro (12 caras pentagonales)"""
     glColor3f(0.5, 1.0, 0.5)
+    glScalef(0.4, 0.4, 0.4) # Escalado porque es muy grande por defecto
     glutSolidDodecahedron()
 
 def draw_octahedron():
-    """Octaedro (8 caras triangulares)"""
     glColor3f(1.0, 0.5, 0.5)
     glutSolidOctahedron()
 
 def draw_tetrahedron():
-    """Tetraedro (4 caras triangulares)"""
     glColor3f(0.5, 0.5, 1.0)
     glutSolidTetrahedron()
 
 def draw_icosahedron():
-    """Icosaedro (20 caras triangulares)"""
     glColor3f(1.0, 1.0, 0.5)
     glutSolidIcosahedron()
 
 def draw_partial_disk():
-    """Disco parcial (sector circular)"""
     glColor3f(0.8, 0.3, 0.8)
     quadric = gluNewQuadric()
     gluPartialDisk(quadric, 0.2, 0.6, 32, 16, 0, 270)
     gluDeleteQuadric(quadric)
 
-def draw_grid():
-    """Dibuja una rejilla de referencia"""
-    glColor3f(0.3, 0.3, 0.3)
-    glBegin(GL_LINES)
-    for i in range(-5, 6):
-        glVertex3f(i, -5, 0)
-        glVertex3f(i, 5, 0)
-        glVertex3f(-5, i, 0)
-        glVertex3f(5, i, 0)
-    glEnd()
-
 def setup_lighting():
-    """Configura iluminación para ver mejor las figuras 3D"""
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_COLOR_MATERIAL)
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
     
-    # Luz posicional
     light_position = [2.0, 2.0, 2.0, 1.0]
     light_ambient = [0.3, 0.3, 0.3, 1.0]
     light_diffuse = [1.0, 1.0, 1.0, 1.0]
@@ -110,104 +87,93 @@ def setup_lighting():
     glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular)
 
 def draw_all_3d_shapes():
-    """Dibuja todas las figuras 3D en una cuadrícula 4x3"""
-    global rotation_angle
+    global rotation_angle, window_width, window_height
     
     shapes = [
-        ("Esfera", draw_sphere),
-        ("Cubo", draw_cube),
-        ("Cono", draw_cone),
-        ("Toroide", draw_torus),
-        ("Tetera", draw_teapot),
-        ("Cilindro", draw_cylinder),
-        ("Disco", draw_disk),
-        ("Dodecaedro", draw_dodecahedron),
-        ("Octaedro", draw_octahedron),
-        ("Tetraedro", draw_tetrahedron),
-        ("Icosaedro", draw_icosahedron),
-        ("Disco Parcial", draw_partial_disk),
+        draw_sphere, draw_cube, draw_cone, draw_torus,
+        draw_teapot, draw_cylinder, draw_disk, draw_dodecahedron,
+        draw_octahedron, draw_tetrahedron, draw_icosahedron, draw_partial_disk
     ]
     
     cols = 4
     rows = 3
     
-    width, height = glfw.get_window_size(glfw.get_current_context())
-    
-    for idx, (name, draw_func) in enumerate(shapes):
+    for idx, draw_func in enumerate(shapes):
         col = idx % cols
         row = idx // cols
         
-        # Configurar viewport
-        cell_width = width // cols
-        cell_height = height // rows
+        # Configurar viewport para cada celda
+        cell_width = window_width // cols
+        cell_height = window_height // rows
         x = col * cell_width
-        y = height - (row + 1) * cell_height
+        y = window_height - (row + 1) * cell_height
         
         glViewport(x, y, cell_width, cell_height)
         
-        # Configurar proyección perspectiva
+        # Proyección
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluPerspective(45, cell_width / cell_height, 0.1, 50.0)
+        # Evitar división por cero
+        aspect = cell_width / cell_height if cell_height > 0 else 1.0
+        gluPerspective(45, aspect, 0.1, 50.0)
         
-        # Configurar vista
+        # Vista
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         gluLookAt(0, 0, 3, 0, 0, 0, 0, 1, 0)
         
-        # Aplicar rotación
+        # Rotación animada
         glRotatef(rotation_angle, 0, 1, 0)
         glRotatef(rotation_angle * 0.5, 1, 0, 0)
         
-        # Dibujar la figura
         glPushMatrix()
         draw_func()
         glPopMatrix()
-        
-        # Dibujar el nombre (simplificado, sin texto real)
-        # Para ver los nombres, necesitarías usar glutBitmapCharacter
+
+def display():
+    """Callback de dibujado de GLUT"""
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    draw_all_3d_shapes()
+    glutSwapBuffers()
+
+def idle():
+    """Callback de actualización (animación)"""
+    global rotation_angle
+    rotation_angle += 0.5
+    if rotation_angle > 360:
+        rotation_angle -= 360
+    glutPostRedisplay() # Obliga a redibujar el frame
+
+def reshape(w, h):
+    """Callback para manejar el cambio de tamaño de la ventana"""
+    global window_width, window_height
+    window_width = w
+    window_height = h
 
 def main():
-    global rotation_angle
+    # 1. Inicializar GLUT correctamente con los argumentos del sistema
+    glutInit(sys.argv)
     
-    # Inicializar GLUT (necesario para las figuras sólidas)
-    glutInit()
-     
-    # Inicializar GLFW
-    if not glfw.init():
-        return
-
-    # Crear ventana
-    window = glfw.create_window(1600, 900, "Todas las Figuras 3D de OpenGL", None, None)
-    if not window:
-        glfw.terminate()
-        return
-
-    glfw.make_context_current(window)
-
-    # Configurar OpenGL
+    # 2. Configurar modo de visualización (doble buffer, RGB, Profundidad y Multimuestreo para anti-aliasing)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
+    
+    # 3. Crear ventana
+    glutInitWindowSize(window_width, window_height)
+    glutCreateWindow(b"Todas las Figuras 3D de OpenGL (Pure GLUT)")
+    
+    # 4. Configurar OpenGL
     glClearColor(0.1, 0.1, 0.15, 1.0)
     setup_lighting()
-    
-    # Habilitar suavizado
-    glEnable(GL_MULTISAMPLE)
+    #glEnable(GL_MULTISAMPLE)
     glShadeModel(GL_SMOOTH)
-
-    # Bucle principal
-    while not glfw.window_should_close(window):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        
-        # Actualizar rotación
-        rotation_angle += 0.5
-        if rotation_angle > 360:
-            rotation_angle -= 360
-        
-        draw_all_3d_shapes()
-        
-        glfw.swap_buffers(window)
-        glfw.poll_events()
-
-    glfw.terminate()
+    
+    # 5. Registrar Callbacks
+    glutDisplayFunc(display)
+    glutIdleFunc(idle)
+    glutReshapeFunc(reshape)
+    
+    # 6. Iniciar el loop de GLUT
+    glutMainLoop()
 
 if __name__ == "__main__":
     main()
