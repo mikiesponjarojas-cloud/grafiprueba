@@ -11,6 +11,7 @@ def draw_house():
     glScalef(2, 1, 2)
     glutSolidCube(1)
     glPopMatrix()
+    global house_base_height;
 
     # Techo (cono)
     glPushMatrix()
