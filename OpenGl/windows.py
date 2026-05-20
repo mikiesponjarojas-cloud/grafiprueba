@@ -3,6 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import math
 
+
 rotation = 0.1
 # Variables globales para la cámara
 camera_pos = [4.0, 3.0, 8.0]  # Posición de la cámara
