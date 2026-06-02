@@ -16,6 +16,7 @@ Controles:
 """
 
 from __future__ import annotations
+from PIL import Image
 
 import sys
 from pathlib import Path
@@ -28,7 +29,9 @@ from OpenGL.GLU import (
     GLU_FILL,
     gluNewQuadric,
     gluQuadricDrawStyle,
+    gluQuadricTexture,
     gluSphere,
+    gluDisk, # <-- Importamos esto para hacer los anillos de Saturno
 )
 
 # ---------------------------------------------------------------------------
@@ -38,17 +41,53 @@ CAMERA_INDEX = 0
 MARKER_LENGTH_M = 0.10  # lado del marcador impreso en metros (ej. 10 cm)
 ARUCO_DICT = cv2.aruco.DICT_4X4_50
 MARKER_ID = 0  # ID del marcador impreso (generateImageMarker id=0)
-MODEL_SCALE = 0.08  # escala del objeto respecto al marcador
+MODEL_SCALE = 0.08  # escala general del objeto respecto al marcador
 OBJECT_MODE = "sphere"  # "teapot" | "sphere"
 
+# Variables de rotación (ángulos)
+sun_rotation = 0.0
+earth_orbit = 0.0
 earth_rotation = 0.0
-satellite_rotation = 0.0
+moon_orbit = 0.0
+satellite_orbit = 0.0
+saturn_orbit = 0.0
+saturn_rotation = 0.0
 
-WINDOW_TITLE = "RA: ArUco + OpenGL (T=tetera/esfera, ESC=salir)"
+WINDOW_TITLE = "RA: Sistema Solar Extendido (ArUco + OpenGL)"
 ZNear, ZFar = 0.01, 100.0
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 CALIB_NPZ = SCRIPT_DIR / "camera_ar.npz"
+
+earth_texture = None
+
+def load_texture(filename):
+    try:
+        image = Image.open(filename)
+        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+        img_data = image.convert("RGB").tobytes()
+
+        texture = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, texture)
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGB,
+            image.width,
+            image.height,
+            0,
+            GL_RGB,
+            GL_UNSIGNED_BYTE,
+            img_data
+        )
+        return texture
+    except Exception as e:
+        print(f"Aviso: No se pudo cargar la textura '{filename}' ({e}). Se usarán colores sólidos.")
+        return None
 
 
 def default_camera_matrix(width: int, height: int) -> np.ndarray:
@@ -149,76 +188,175 @@ def draw_sphere(radius: float = 1.0) -> None:
         gluQuadricDrawStyle(_quadric, GLU_FILL)
     gluSphere(_quadric, radius, 32, 16)
 
-def draw_earth(radius=1.0):
-    glColor3f(0.2, 0.5, 1.0)
-    draw_sphere(radius)
 
-def draw_satellite(size=0.2):
-    glPushMatrix()
-
-    glScalef(size, size, size)
-
-    glColor3f(0.8, 0.8, 0.8)
-
+def draw_cube_with_normals(size=1.0):
+    s = size / 2.0
     glBegin(GL_QUADS)
-
-    # Frente
-    glVertex3f(-1,-1,1)
-    glVertex3f(1,-1,1)
-    glVertex3f(1,1,1)
-    glVertex3f(-1,1,1)
-
-    # Atrás
-    glVertex3f(-1,-1,-1)
-    glVertex3f(-1,1,-1)
-    glVertex3f(1,1,-1)
-    glVertex3f(1,-1,-1)
-
+    glNormal3f(0.0, 0.0, 1.0)
+    glVertex3f(-s,-s, s); glVertex3f( s,-s, s); glVertex3f( s, s, s); glVertex3f(-s, s, s)
+    glNormal3f(0.0, 0.0, -1.0)
+    glVertex3f(-s,-s,-s); glVertex3f(-s, s,-s); glVertex3f( s, s,-s); glVertex3f( s,-s,-s)
+    glNormal3f(0.0, 1.0, 0.0)
+    glVertex3f(-s, s,-s); glVertex3f(-s, s, s); glVertex3f( s, s, s); glVertex3f( s, s,-s)
+    glNormal3f(0.0, -1.0, 0.0)
+    glVertex3f(-s,-s,-s); glVertex3f( s,-s,-s); glVertex3f( s,-s, s); glVertex3f(-s,-s, s)
+    glNormal3f(1.0, 0.0, 0.0)
+    glVertex3f( s,-s,-s); glVertex3f( s, s,-s); glVertex3f( s, s, s); glVertex3f( s,-s, s)
+    glNormal3f(-1.0, 0.0, 0.0)
+    glVertex3f(-s,-s,-s); glVertex3f(-s,-s, s); glVertex3f(-s, s, s); glVertex3f(-s, s,-s)
     glEnd()
 
+
+def draw_sun(scale):
+    """ Dibuja un gran sol brillante amarillo """
+    glPushMatrix()
+    glDisable(GL_LIGHTING)
+    glColor3f(1.0, 0.85, 0.1) # brillante solar
+    draw_sphere(scale * 0.6) #tamaño del sol
+    glEnable(GL_LIGHTING)
     glPopMatrix()
 
 
-def draw_earth_system(scale):
-    global earth_rotation
-    global satellite_rotation
+def draw_textured_earth(radius):
+    global earth_texture
+    if earth_texture is not None:
+        glEnable(GL_TEXTURE_2D)
+        glBindTexture(GL_TEXTURE_2D, earth_texture)
+        glColor3f(1.0, 1.0, 1.0)
+        quad = gluNewQuadric()
+        gluQuadricTexture(quad, GL_TRUE)
+        gluSphere(quad, radius, 40, 40)
+        glDisable(GL_TEXTURE_2D)
+    else:
+        glColor3f(0.1, 0.4, 0.8)
+        draw_sphere(radius)
 
+
+def draw_luna(scale):
+    """ Dibuja la Luna (esfera gris claro con relieve/iluminación) """
+    glColor3f(0.65, 0.65, 0.65)
+    draw_sphere(scale * 0.2)
+
+
+def draw_satellite(scale):
     glPushMatrix()
+    glColor3f(0.75, 0.75, 0.75)
+    draw_cube_with_normals(scale * 0.25)
+    
+    # Panel Izquierdo
+    glColor3f(0.1, 0.2, 0.6)
+    glPushMatrix()
+    glTranslatef(-scale * 0.35, 0.0, 0.0)
+    glScalef(2.5, 0.6, 0.1)
+    draw_cube_with_normals(scale * 0.15)
+    glPopMatrix()
+    
+    # Panel Derecho
+    glPushMatrix()
+    glTranslatef(scale * 0.35, 0.0, 0.0)
+    glScalef(2.5, 0.6, 0.1)
+    draw_cube_with_normals(scale * 0.15)
+    glPopMatrix()
+    glPopMatrix()
 
-    # Tierra
+
+def draw_saturn(scale):
+    """ Dibuja a Saturno (Esfera ocre + Anillos planos) """
+    glPushMatrix()
+    
+    # 1 Planeta
+    glColor3f(0.85, 0.7, 0.45)
+    draw_sphere(scale * 0.8)
+    
+    # 2 Anillos
+    glPushMatrix()
+    glRotatef(75, 1, 0, 0) 
+    glColor3f(0.7, 0.6, 0.45) # Color 
+    
+    quad = gluNewQuadric()
+    gluDisk(quad, scale * 1.0, scale * 1.6, 4, 40)
+    glPopMatrix()
+    
+    glPopMatrix()
+
+
+def draw_universe_system(scale):
+    """ Gestiona toda la jerarquía de órbitas y movimientos """
+    global sun_rotation, earth_orbit, earth_rotation, moon_orbit, satellite_orbit, saturn_orbit, saturn_rotation
+
+    # Sol
+    glPushMatrix()
+    glRotatef(sun_rotation, 0, 1, 0)
+    draw_sun(scale)
+    glPopMatrix()
+
+    # orbita
+    glPushMatrix()
+    glRotatef(earth_orbit, 0, 1, 0)      
+    glTranslatef(scale * 3.2, 0.0, 0.0)    
+    
+    # Rotación sobre su propio eje 
+    glPushMatrix()
     glRotatef(earth_rotation, 0, 1, 0)
+    draw_textured_earth(scale * 0.6)       # Tierra a escala 
+    
+    # Atmósfera
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glColor4f(0.4, 0.6, 1.0, 0.2)
+    draw_sphere(scale * 0.64)
+    glDisable(GL_BLEND)
+    glPopMatrix()
 
-    draw_earth(scale)
-
-    # Satélite
+    # Luna gira
     glPushMatrix()
-
-    glRotatef(satellite_rotation, 0, 1, 0)
-
-    glTranslatef(scale * 3.0, 0.0, 0.0)
-
-    draw_satellite(scale * 0.3)
-
+    glRotatef(moon_orbit, 0, 1, 0)
+    glTranslatef(scale * 1.1, 0.1, 0.0)    # Separación Tierra-Luna
+    draw_luna(scale)
     glPopMatrix()
 
+    #El Satélite gira
+    glPushMatrix()
+    glRotatef(satellite_orbit, 1, 1, 0)    # Órbita inclinada
+    glTranslatef(scale * 0.9, -0.1, 0.0)   
+    draw_satellite(scale)
     glPopMatrix()
 
-    earth_rotation += 1.0
-    satellite_rotation += 3.0
+    glPopMatrix() # Fin del sistema 
+
+    # saturno
+    glPushMatrix()
+    glRotatef(saturn_orbit, 0, 1, 0)       # Traslación de Saturno
+    glTranslatef(scale * 6.0, -0.2, 0.0)   # Más lejos del Sol que la Tierra
+    glRotatef(saturn_rotation, 0, 1, 0)    # Rotación propia
+    draw_saturn(scale)
+    glPopMatrix()
+
+    # Velocidades 
+    sun_rotation += 0.05      
+    earth_orbit += 0.15       
+    earth_rotation += 0.5     
+    moon_orbit += 0.7         
+    satellite_orbit += 1.1    
+    saturn_orbit += 0.05     
+    saturn_rotation += 0.3   
+
 
 def draw_teapot(scale: float) -> None:
     from OpenGL.GLUT import glutSolidTeapot
     glutSolidTeapot(scale)
 
-    
 
 def draw_ar_object(mode: str, scale: float) -> None:
     glPushMatrix()
-
     glTranslatef(0.0, 0.0, scale)
-
-    draw_earth_system(scale)
-
+    
+    if mode == "sphere":
+        draw_universe_system(scale)
+    else:
+        glColor3f(0.9, 0.6, 0.2)
+        draw_teapot(scale)
+        
     glPopMatrix()
 
 
@@ -227,9 +365,13 @@ def setup_lighting() -> None:
     glEnable(GL_LIGHT0)
     glEnable(GL_COLOR_MATERIAL)
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
-    glLightfv(GL_LIGHT0, GL_POSITION, (0.2, 0.4, 1.0, 0.0))
+    
+    # La luz se posiciona en el origen (0,0,0) para simular que el SOL es la fuente de luz real
+    glLightfv(GL_LIGHT0, GL_POSITION, (0.0, 0.0, 0.0, 1.0))
+    glEnable(GL_DEPTH_TEST)
+    glShadeModel(GL_SMOOTH)
     glLightfv(GL_LIGHT0, GL_DIFFUSE, (1.0, 1.0, 0.95, 1.0))
-    glLightfv(GL_LIGHT0, GL_AMBIENT, (0.25, 0.25, 0.25, 1.0))
+    glLightfv(GL_LIGHT0, GL_AMBIENT, (0.2, 0.2, 0.2, 1.0)) # Luz ambiental tenue para el espacio
     glEnable(GL_NORMALIZE)
 
 
@@ -313,8 +455,7 @@ def main() -> None:
     camera_matrix, dist_coeffs = load_calibration(cam_w, cam_h)
     detector, dictionary = make_aruco_detector()
 
-    if OBJECT_MODE == "teapot":
-        init_glut_for_geometry()
+    init_glut_for_geometry()
 
     if not glfw.init():
         sys.exit(1)
@@ -327,6 +468,10 @@ def main() -> None:
         sys.exit(1)
 
     glfw.make_context_current(window)
+    
+    global earth_texture
+    earth_texture = load_texture("Planeta.jpg")
+    
     glfw.swap_interval(1)
 
     def on_key(win, key, _scancode, action, _mods):
@@ -337,8 +482,6 @@ def main() -> None:
             glfw.set_window_should_close(win, True)
         elif key == glfw.KEY_T:
             OBJECT_MODE = "sphere" if OBJECT_MODE == "teapot" else "teapot"
-            if OBJECT_MODE == "teapot":
-                init_glut_for_geometry()
         elif key in (glfw.KEY_EQUAL, glfw.KEY_KP_ADD):
             MODEL_SCALE *= 1.1
         elif key in (glfw.KEY_MINUS, glfw.KEY_KP_SUBTRACT):

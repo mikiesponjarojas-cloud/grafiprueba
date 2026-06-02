@@ -1,265 +1,149 @@
-import time, math
-import numpy as np
 import cv2
+import numpy as np
+import math
 
-W, H = 800, 600
+W, H = 640, 480
 FPS = 30
-DURATION = 60.0
+DURATION = 60
 
-def clamp01(x): return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 def smoothstep(a, b, x):
-    x = clamp01((x - a) / (b - a))
+    x = max(0.0, min(1.0, (x - a) / (b - a)))
     return x * x * (3 - 2 * x)
 
-def poly_param(fx, fy, t0, t1, n, cx, cy, sx, sy):
-    ts = np.linspace(t0, t1, n, dtype=np.float32)
-    xs = fx(ts) * sx + cx
-    ys = fy(ts) * sy + cy
-    return np.round(np.stack([xs, ys], 1)).astype(np.int32).reshape((-1, 1, 2))
-
-def hsv_to_bgr(h, s, v):
-    # OpenCV: H en [0,179], S,V en [0,255]
-    hsv = np.uint8([[[h % 180, np.clip(s, 0, 255), np.clip(v, 0, 255)]]])
-    return tuple(int(x) for x in cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0])
-
-def post_vignette(img, strength=0.7):
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    nx = (xx - W*0.5) / (W*0.5)
-    ny = (yy - H*0.5) / (H*0.5)
-    r2 = nx*nx + ny*ny
-    mask = np.clip(1.0 - strength * r2, 0.0, 1.0)
-    out = (img.astype(np.float32) * mask[..., None]).astype(np.uint8)
-    return out
-
-def post_scanlines(img, strength=0.22):
-    out = img.astype(np.float32)
-    y = np.arange(H, dtype=np.float32)
-    m = 1.0 - strength * (0.5 + 0.5*np.sin(2*np.pi*y/3.0))
-    out *= m[:, None, None]
-    return np.clip(out, 0, 255).astype(np.uint8)
-
-def post_posterize(img, q=32):
-    q = max(1, int(q))
-    return ((img // q) * q).astype(np.uint8)
-
-def background_hsv_gradient(img, t, hue0=10, hue1=140):
-    # Degradado vertical en HSV para cambiar “ambiente” por escena
-    hsv = np.zeros((H, W, 3), np.uint8)
-    ys = np.linspace(0, 1, H, dtype=np.float32)
-    hue = (hue0 + (hue1 - hue0) * ys + 10*np.sin(t*0.4 + ys*2.0)).astype(np.float32)
-    hsv[:, :, 0] = np.clip(hue, 0, 179).astype(np.uint8)[:, None]
-    hsv[:, :, 1] = 200
-    hsv[:, :, 2] = (40 + 120*(1 - ys)).astype(np.uint8)[:, None]
-    img[:] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
-def scene_credits(img, t):
-    background_hsv_gradient(img, t, hue0=165, hue1=105)
-    # “estrellas” deterministas
-    rng = np.random.default_rng(1)
-    xs = rng.integers(0, W, 380)
-    ys = rng.integers(0, int(H*0.65), 380)
-    img[ys, xs] = (255, 255, 255)
-    img[:] = cv2.GaussianBlur(img, (0,0), 0.6)
-    cv2.putText(img, "DEMO PROCEDURAL (GRAFICACION)", (42, 260), cv2.FONT_HERSHEY_SIMPLEX, 0.95, (245,245,245), 2, cv2.LINE_AA)
-    cv2.putText(img, "OpenCV + Matematicas + Miguel Rojas Santillan", (42, 310), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (220,220,220), 2, cv2.LINE_AA)
-
-def scene_lissajous(img, t):
-    background_hsv_gradient(img, t, hue0=18, hue1=60)
-    a = 3 + 0.7 * math.sin(t*0.6)
-    b = 2 + 0.7 * math.cos(t*0.8)
-    delta = math.pi/2 + 0.4*math.sin(t*0.3)
-    fx = lambda x: np.sin(a*x + delta)
-    fy = lambda x: np.sin(b*x)
-    pts = poly_param(fx, fy, 0, 2*math.pi, 900, W*0.5, H*0.45, 260, 180)
-    col = hsv_to_bgr(int(20 + 30*np.sin(t*0.8)), 210, 240)
-    cv2.polylines(img, [pts], False, col, 2, cv2.LINE_AA)
-
-def scene_rose_polar(img, t):
-    background_hsv_gradient(img, t, hue0=120, hue1=165)
-    # Rosa polar: r = cos(k*theta)
-    k = 5
-    theta0 = t * 0.6
-    fx = lambda th: np.cos(k*th) * np.cos(th + theta0)
-    fy = lambda th: np.cos(k*th) * np.sin(th + theta0)
-    pts = poly_param(fx, fy, 0, 2*math.pi, 1200, W*0.5, H*0.45, 240, 240)
-    col = hsv_to_bgr(int(145 + 25*np.sin(t*0.5)), 220, 245)
-    cv2.polylines(img, [pts], False, col, 2, cv2.LINE_AA)
-    # Círculos “beats”
-    for i in range(6):
-        r = int(18 + 10*np.sin(t*2.0 + i))
-        cv2.circle(img, (int(W*0.18 + i*110), int(H*0.78)), max(1, r), (230,230,230), 1, cv2.LINE_AA)
-
-def scene_spirograph(img, t):
-    background_hsv_gradient(img, t, hue0=80, hue1=20)
-    # Hipotrocoide (spirograph): (R-r)cos(t) + d cos((R-r)/r * t)
-    R, r, d = 8.0, 3.0, 5.0
-    w = (R - r) / r
-    fx = lambda x: (R-r)*np.cos(x) + d*np.cos(w*x + 0.4*np.sin(t*0.7))
-    fy = lambda x: (R-r)*np.sin(x) - d*np.sin(w*x + 0.4*np.cos(t*0.6))
-    pts = poly_param(fx, fy, 0, 14*math.pi, 1600, W*0.5, H*0.46, 26, 26)
-    col = hsv_to_bgr(int(10 + 140*(0.5+0.5*np.sin(t*0.4))), 240, 240)
-    cv2.polylines(img, [pts], False, col, 2, cv2.LINE_AA)
-    img[:] = post_scanlines(img, 0.18)
-
-def scene_particles(img, t, rng):
-    background_hsv_gradient(img, t, hue0=150, hue1=100)
-    n = 1200
-    xs = rng.random(n) * W
-    ys = rng.random(n) * H
-    xs = (xs + 110*np.sin(ys/55.0 + t*1.7) + 40*np.cos(t*0.7)) % W
-    ys = (ys + 85*np.cos(xs/75.0 + t*1.2) + 30*np.sin(t*0.9)) % H
-    # “brillo” por velocidad (fake)
-    v = (0.5 + 0.5*np.sin(t*1.9)).astype(float) if hasattr(t, "astype") else (0.5 + 0.5*math.sin(t*1.9))
-    col = hsv_to_bgr(int(95 + 40*math.sin(t*0.8)), 210, int(210 + 40*v))
-    img[ys.astype(np.int32), xs.astype(np.int32)] = col
-    img[:] = cv2.GaussianBlur(img, (0,0), 1.1)
-
-def scene_fire(img, t, state):
-    # “Fuego” procedural: partículas + heatmap + paleta HSV
-    heat = state["heat"]
-    rng = state["rng"]
-    heat[:] = (heat * 0.93).astype(np.float32)
-
-    # Inyección en la base (más calor = más fuego)
-    base_n = 1400
-    xs = rng.integers(0, W, base_n)
-    ys = rng.integers(int(H*0.82), H, base_n)
-    heat[ys, xs] += rng.random(base_n) * (0.8 + 0.6*(0.5+0.5*math.sin(t*2.0)))
-
-    # “subida” del calor: blur anisotrópico + desplazamiento hacia arriba
-    heat[:] = cv2.GaussianBlur(heat, (0, 0), 2.2)
-    heat[:-2, :] = heat[2:, :]  # desplaza hacia arriba (convección barata)
-    heat[-2:, :] *= 0.0
-
-    # Mapeo a color con HSV (rojo->amarillo->blanco)
-    h = (20 - 20*np.clip(heat, 0, 1)).astype(np.uint8)      # 20..0
-    s = (220 - 80*np.clip(heat, 0, 1)).astype(np.uint8)     # 220..140
-    v = (60 + 195*np.clip(heat, 0, 1)).astype(np.uint8)     # 60..255
-    hsv = np.dstack([h, s, v]).astype(np.uint8)
-    img[:] = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-
-    # Silueta y chispas
-    cv2.rectangle(img, (0, int(H*0.83)), (W, H), (10, 10, 10), -1)
-    sparks = 160
-    sx = rng.integers(0, W, sparks)
-    sy = rng.integers(int(H*0.55), int(H*0.9), sparks)
-    img[sy, sx] = (255, 255, 255)
-    img[:] = cv2.GaussianBlur(img, (0,0), 0.6)
-
-def render_scene(buf, scene_id, t, rng, fire_state):
-    if scene_id == 0:
-        scene_credits(buf, t)
-    elif scene_id == 1:
-        scene_lissajous(buf, t)
-    elif scene_id == 2:
-        scene_rose_polar(buf, t)
-    elif scene_id == 3:
-        scene_spirograph(buf, t)
-    elif scene_id == 4:
-        scene_particles(buf, t, rng)
-    elif scene_id == 5:
-        scene_fire(buf, t, fire_state)
-    else:
-        scene_tunnel(buf, t)
-
-def scene_tunnel(img, t):
-    background_hsv_gradient(img, t, hue0=170, hue1=20)
-
-    cx, cy = W // 2, H // 2
-
-    for i in range(1, 90):
-        z = i / 90.0
-
-        r = int(20 + z * 420 + 25 * math.sin(t * 2 + z * 8))
-        thickness = max(1, int(3 - z * 2))
-
-        col = hsv_to_bgr(
-            int((t * 40 + i * 3) % 180),
-            220,
-            int(255 - z * 120)
+def background(img, t, c1, c2):
+    for y in range(H):
+        a = y / H
+        img[y, :] = (
+            int(c1[0] * (1 - a) + c2[0] * a),
+            int(c1[1] * (1 - a) + c2[1] * a),
+            int(c1[2] * (1 - a) + c2[2] * a)
         )
 
-        cv2.circle(img, (cx, cy), r, col, thickness, cv2.LINE_AA)
+def scene_intro(img, t):
+    background(img, t, (30, 20, 80), (120, 60, 180))
+    cv2.putText(img, "DEMO 64K", (250, 220), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 3)
+    cv2.putText(img, "Miguel Rojas Santillan", (170, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+    cv2.putText(img, "Graficacion", (290, 380), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
-    # líneas radiales
-    for a in np.linspace(0, 2 * math.pi, 24):
-        x = int(cx + math.cos(a + t * 0.5) * 420)
-        y = int(cy + math.sin(a + t * 0.5) * 420)
+def scene_circle(img, t):
+    background(img, t, (20,80,20), (50,180,50))
+    r = int(80 + 50 * math.sin(t * 2))
+    cv2.circle(img, (W//2, H//2), r, (255,255,255), -1)
 
-        col = hsv_to_bgr(int((a * 30 + t * 60) % 180), 255, 255)
+def scene_square(img, t):
+    background(img, t, (80,20,20), (180,60,60))
+    ang = t * 60
+    pts = np.array([[-80,-80],[80,-80],[80,80],[-80,80]], np.float32)
+    rad = math.radians(ang)
+    rot = np.array([[math.cos(rad),-math.sin(rad)],[math.sin(rad),math.cos(rad)]])
+    pts = pts @ rot.T
+    pts[:,0] += W//2
+    pts[:,1] += H//2
+    cv2.fillPoly(img, [pts.astype(np.int32)], (255,255,255))
 
-        cv2.line(img, (cx, cy), (x, y), col, 1, cv2.LINE_AA)
+def scene_spiral(img, t):
+    background(img, t, (20,20,20), (120,120,120))
+    pts = []
+    for a in np.linspace(0, 12 * math.pi, 1000):
+        r = a * 6
+        x = W//2 + math.cos(a + t) * r
+        y = H//2 + math.sin(a + t) * r
+        pts.append((int(x), int(y)))
+    cv2.polylines(img, [np.array(pts)], False, (255,255,255), 2)
 
-    img[:] = cv2.GaussianBlur(img, (0, 0), 0.8)        
+def scene_particles(img, t):
+    background(img, t, (0,50,100), (0,150,200))
+    for i in range(500):
+        x = int((i * 17 + t * 80) % W)
+        y = int((i * 29 + 50 * math.sin(i + t)) % H)
+        cv2.circle(img, (x,y), 1, (255,255,255), -1)
 
-def timeline(t, rng, bufA, bufB, fire_state):
+def scene_wave(img, t):
+    background(img, t, (100,50,0), (220,140,40))
+    pts = []
+    for x in range(W):
+        y = int(H/2 + 100 * math.sin(x * 0.02 + t * 4))
+        pts.append((x,y))
+    cv2.polylines(img, [np.array(pts)], False, (255,255,255), 3)
 
-    # 7 escenas = 6 transiciones
-    # 60s / 7 ≈ 8.57s por bloque
-    BLOCK_TIME = DURATION / 7.0
+def scene_credits(img, t):
+    background(img, t, (0,0,0), (60,60,60))
+    cv2.putText(img, "Gracias por ver", (220,250), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255,255,255), 3)
+    cv2.putText(img, "Miguel Rojas Santillan", (180,340), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
-    block = int(min(6, max(0, t // BLOCK_TIME)))
-    t_in = t - block * BLOCK_TIME
+def render(scene, img, t):
+    if scene == 0: scene_intro(img,t)
+    elif scene == 1: scene_circle(img,t)
+    elif scene == 2: scene_square(img,t)
+    elif scene == 3: scene_spiral(img,t)
+    elif scene == 4: scene_particles(img,t)
+    elif scene == 5: scene_wave(img,t)
+    else: scene_credits(img,t)
 
-    render_scene(bufA, block, t, rng, fire_state)
-    frame = bufA
+def transition(a, b, mode, p):
+    if mode == 0:
+        return cv2.addWeighted(a, 1-p, b, p, 0)
 
-    # transición en últimos 1.2 segundos
-    if block < 6 and t_in >= BLOCK_TIME - 1.2:
+    if mode == 1:
+        flash = np.full_like(a, 255)
+        tmp = cv2.addWeighted(a, 1-p, flash, p, 0)
+        return cv2.addWeighted(tmp, 1-p, b, p, 0)
 
-        render_scene(bufA, block, t, rng, fire_state)
-        render_scene(bufB, block + 1, t, rng, fire_state)
+    if mode == 2:
+        scale = 1 + p
+        w = int(W / scale)
+        h = int(H / scale)
+        x = (W - w)//2
+        y = (H - h)//2
+        crop = a[y:y+h, x:x+w]
+        zoom = cv2.resize(crop, (W,H))
+        return cv2.addWeighted(zoom, 1-p, b, p, 0)
 
-        a = smoothstep(BLOCK_TIME - 1.2, BLOCK_TIME, t_in)
+    if mode == 3:
+        cut = int(W * p)
+        out = a.copy()
+        out[:, :cut] = b[:, :cut]
+        return out
 
-        frame = cv2.addWeighted(bufA, 1 - a, bufB, a, 0)
+    if mode == 4:
+        cut = int(H * p)
+        out = a.copy()
+        out[:cut, :] = b[:cut, :]
+        return out
 
-        flash = smoothstep(BLOCK_TIME - 0.4, BLOCK_TIME, t_in)
-
-        if flash > 0:
-            frame = cv2.addWeighted(
-                frame,
-                1.0,
-                np.full_like(frame, 255),
-                0.10 * flash,
-                0
-            )
-
-    # fade global
-    fin = smoothstep(0.0, 1.5, t)
-    fout = 1.0 - smoothstep(DURATION - 1.5, DURATION, t)
-
-    f = fin * fout
-
-    if f < 0.999:
-        frame = (frame.astype(np.float32) * f).astype(np.uint8)
-
-    return frame
-
-    
+    return cv2.addWeighted(a, 1-p, b, p, 0)
 
 def main():
-    rng = np.random.default_rng(123)
-    bufA = np.zeros((H, W, 3), np.uint8)
-    bufB = np.zeros((H, W, 3), np.uint8)
+    scenes = 7
+    block_time = DURATION / scenes
 
-    fire_state = {
-        "heat": np.zeros((H, W), np.float32),
-        "rng": np.random.default_rng(999),
-    }
+    bufA = np.zeros((H,W,3), np.uint8)
+    bufB = np.zeros((H,W,3), np.uint8)
 
-    total_frames = int(DURATION * FPS)
-    t0 = time.perf_counter()
-    for i in range(total_frames):
+    total = int(DURATION * FPS)
+
+    for i in range(total):
         t = i / FPS
-        frame = timeline(t, rng, bufA, bufB, fire_state)
-        frame = post_vignette(frame, 0.72)
-        frame = post_scanlines(frame, 0.16)
-        frame = post_posterize(frame, 24)
-        cv2.imshow("Proyecto Final: demo procedural (OpenCV)", frame)
-        if cv2.waitKey(1) & 0xFF == 27:
+
+        scene = min(scenes - 1, int(t // block_time))
+        local = t - scene * block_time
+
+        render(scene, bufA, t)
+
+        frame = bufA.copy()
+
+        if scene < scenes - 1 and local > block_time - 1.5:
+            render(scene + 1, bufB, t)
+            p = smoothstep(block_time - 1.5, block_time, local)
+
+            modes = [0,1,2,3,4,0]
+            frame = transition(bufA, bufB, modes[scene], p)
+
+        cv2.imshow("Demo 64K - Miguel Rojas Santillan", frame)
+
+        if cv2.waitKey(int(1000/FPS)) & 0xFF == 27:
             break
-    print("Tiempo:", time.perf_counter() - t0)
+
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
