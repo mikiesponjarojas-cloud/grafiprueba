@@ -130,7 +130,7 @@ def detect_marker(gray, detector, dictionary):
 
 
 def marker_object_points(side_length):
-    s = side_length / 2.0
+    s = side_length / 1.0
     return np.array([[-s, s, 0], [s, s, 0], [s, -s, 0], [-s, -s, 0]], dtype=np.float32)
 
 
