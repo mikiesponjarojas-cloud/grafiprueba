@@ -322,13 +322,13 @@ def draw_universe_system(scale):
     draw_satellite(scale)
     glPopMatrix()
 
-    glPopMatrix() # Fin del sistema 
+    glPopMatrix() 
 
     # saturno
     glPushMatrix()
-    glRotatef(saturn_orbit, 0, 1, 0)       # Traslación de Saturno
-    glTranslatef(scale * 6.0, -0.2, 0.0)   # Más lejos del Sol que la Tierra
-    glRotatef(saturn_rotation, 0, 1, 0)    # Rotación propia
+    glRotatef(saturn_orbit, 0, 1, 0)       
+    glTranslatef(scale * 6.0, -0.2, 0.0)   
+    glRotatef(saturn_rotation, 0, 1, 0)    
     draw_saturn(scale)
     glPopMatrix()
 
